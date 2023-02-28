@@ -2,6 +2,8 @@ package com.parkit.parkingsystem.service;
 
 import com.parkit.parkingsystem.constants.Fare;
 import com.parkit.parkingsystem.model.Ticket;
+import java.math.BigDecimal;  
+import java.math.RoundingMode;  
 
 public class FareCalculatorService {
 
@@ -15,13 +17,23 @@ public class FareCalculatorService {
 
         //TODO: Some tests are failing here. Need to check if this logic is correct
         double duration = (outHour - inHour) / (3600000);
+        BigDecimal bd = new BigDecimal(duration).setScale(2, RoundingMode.HALF_UP);  
+        duration = bd.doubleValue();
 
         switch (ticket.getParkingSpot().getParkingType()){
             case CAR: {
+                if(duration <= 0.5){
+                  ticket.setPrice(duration * Fare.CAR_RATE_PER_HALF_HOUR);
+                  break;
+                }
                 ticket.setPrice(duration * Fare.CAR_RATE_PER_HOUR);
                 break;
             }
             case BIKE: {
+              if(duration <= 0.5){
+                  ticket.setPrice(duration * Fare.BIKE_RATE_PER_HALF_HOUR);
+                  break;
+                }
                 ticket.setPrice(duration * Fare.BIKE_RATE_PER_HOUR);
                 break;
             }

@@ -7,7 +7,7 @@ import java.math.RoundingMode;
 
 public class FareCalculatorService {
 
-    public void calculateFare(Ticket ticket){
+    public void calculateFare(Ticket ticket, boolean discount){
         if( (ticket.getOutTime() == null) || (ticket.getOutTime().before(ticket.getInTime())) ){
             throw new IllegalArgumentException("Out time provided is incorrect:"+ticket.getOutTime().toString());
         }
@@ -26,7 +26,12 @@ public class FareCalculatorService {
                   ticket.setPrice(duration * Fare.CAR_RATE_PER_HALF_HOUR);
                   break;
                 }
-                ticket.setPrice(duration * Fare.CAR_RATE_PER_HOUR);
+                
+                if(discount == true){
+                  ticket.setPrice((duration * Fare.CAR_RATE_PER_HOUR) * 0.95);
+                } else {
+                  ticket.setPrice(duration * Fare.CAR_RATE_PER_HOUR);
+                }
                 break;
             }
             case BIKE: {
@@ -34,10 +39,19 @@ public class FareCalculatorService {
                   ticket.setPrice(duration * Fare.BIKE_RATE_PER_HALF_HOUR);
                   break;
                 }
-                ticket.setPrice(duration * Fare.BIKE_RATE_PER_HOUR);
+              
+              if(discount == true){
+                  ticket.setPrice((duration * Fare.BIKE_RATE_PER_HOUR) * 0.95);
+                } else {
+                  ticket.setPrice(duration * Fare.BIKE_RATE_PER_HOUR);
+                }
                 break;
             }
             default: throw new IllegalArgumentException("Unkown Parking Type");
         }
+    }
+
+    public void calculateFare(Ticket ticket){
+      this.calculateFare(ticket, false);
     }
 }

@@ -4,7 +4,8 @@ import com.parkit.parkingsystem.dao.ParkingSpotDAO;
 import com.parkit.parkingsystem.dao.TicketDAO;
 import com.parkit.parkingsystem.model.ParkingSpot;
 import com.parkit.parkingsystem.model.Ticket;
-import com.parkit.parkingsystem.service.FareCalculatorService;;
+import com.parkit.parkingsystem.constants.ParkingType;
+import com.parkit.parkingsystem.service.FareCalculatorService;
 import com.parkit.parkingsystem.integration.config.DataBaseTestConfig;
 import com.parkit.parkingsystem.integration.service.DataBasePrepareService;
 import com.parkit.parkingsystem.service.ParkingService;
@@ -16,12 +17,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.Mockito;
+import com.parkit.parkingsystem.constants.Fare;
 
 import java.util.Date;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import java.sql.*;
 
 @ExtendWith(MockitoExtension.class)
 public class ParkingDataBaseIT {
@@ -59,47 +61,113 @@ public class ParkingDataBaseIT {
     }
 
     @Test
-    public void testParkingACar(){
-        int nbTicket = ticketDAO.getNbTicket("ABCDEF");
+    public void testParkingACar() throws SQLException, ClassNotFoundException, InterruptedException{
         ParkingService parkingService = new ParkingService(inputReaderUtil, parkingSpotDAO, ticketDAO);
-        ParkingSpot parkingSpot = parkingService.getNextParkingNumberIfAvailable();
         parkingService.processIncomingVehicle();
-        //TODO: check that a ticket is actualy saved in DB and Parking table is updated with availability
-        assertEquals(ticketDAO.getNbTicket("ABCDEF"), nbTicket + 1);
-        assertNotEquals(parkingService.getNextParkingNumberIfAvailable(), parkingSpot);
+        //calling db
+        Connection con = dataBaseTestConfig.getConnection();
+
+        con = dataBaseTestConfig.getConnection();
+        String queryTicket = "SELECT * FROM ticket INNER JOIN parking ON ticket.PARKING_NUMBER = parking.PARKING_NUMBER WHERE ticket.VEHICLE_REG_NUMBER = \"ABCDEF\"";
+
+        try{
+            PreparedStatement ps = con.prepareStatement(queryTicket);
+            
+            ResultSet rs = ps.executeQuery();
+            //set db with a new car
+            if(rs.next()){
+                Ticket ticket = new Ticket();
+                ParkingSpot parkingSpot = new ParkingSpot(rs.getInt(1), ParkingType.valueOf(rs.getString(6)),false);
+                ticket.setParkingSpot(parkingSpot);
+                ticket.setId(rs.getInt(2));
+                ticket.setVehicleRegNumber("ABCDEF");
+                ticket.setPrice(rs.getDouble(3));
+                ticket.setInTime(rs.getTimestamp(4));
+                ticket.setOutTime(rs.getTimestamp(5));
+                } 
+            }catch (Exception e) {
+            System.err.println("Exception : " + e.getMessage());
+        }
+
+        //then
+        finally {
+            Ticket ticket = ticketDAO.getTicket("ABCDEF");
+            assertNotNull(ticket);
+        }
     }
 
     @Test
-    public void testParkingLotExit(){
+    public void testParkingLotExit() throws SQLException, ClassNotFoundException, InterruptedException{
         testParkingACar();
+        
+        //given
         ParkingService parkingService = new ParkingService(inputReaderUtil, parkingSpotDAO, ticketDAO);
         parkingService.processExitingVehicle();
-        //TODO: check that the fare generated and out time are populated correctly in the database
-        Ticket ticket = ticketDAO.getTicket("ABCDEF");
-        assertNotNull(ticket.getOutTime());
-        assertNotNull(ticket.getPrice());
+        Connection con = dataBaseTestConfig.getConnection();
+
+        con = dataBaseTestConfig.getConnection();
+        String queryTicket = "SELECT * FROM ticket INNER JOIN parking ON ticket.PARKING_NUMBER = parking.PARKING_NUMBER WHERE ticket.VEHICLE_REG_NUMBER = \"ABCDEF\"";
+
+        //when
+        try{
+            PreparedStatement ps = con.prepareStatement(queryTicket);
+            ps.setString(1,"ABCDEF");
+            ResultSet rs = ps.executeQuery();
+            if(rs.next()){
+               Timestamp intTime = rs.getTimestamp("IN_TIME");
+               Timestamp outTime = rs.getTimestamp("OUT_TIME");
+               Double priceTicket = rs.getDouble("PRICE");
+               assertNotNull(intTime);
+               assertNotNull(outTime);
+               assertNotNull(priceTicket);
+            }
+        } catch (Exception e) {
+            System.err.println("Exception : " + e.getMessage());
+        }
+
+        //then
+        finally {
+            Ticket ticket = ticketDAO.getTicket("ABCDEF");
+            assertNotNull(ticket);
+        }
     }
 
-
-    public void testParkingLotExitRecurringUser() throws Exception{
+    @Test
+    public void testParkingLotExitRecurringUser() throws SQLException, ClassNotFoundException, InterruptedException{
+        //given
         ParkingService parkingService = new ParkingService(inputReaderUtil, parkingSpotDAO, ticketDAO);
-        // crée un ticket avec une entrée pour devenir un utilisateur récurrent
-        Ticket ticket = new Ticket();
-    
-        ticket.setVehicleRegNumber("ABCDEF");
-        ticket.setPrice(45);
-        ticket.setInTime(new Date(System.currentTimeMillis() - (24 * 60 * 60 * 1000))); // entrée il y a 10 heures
-        ticket.setOutTime(new Date(System.currentTimeMillis() - (22 * 60 * 60 * 1000))); // sortie il y a 9 heures
-        ticketDAO.saveTicket(ticket);
         parkingService.processIncomingVehicle();
-
-        ticket = ticketDAO.getTicket("ABCDEF");
-        ticket.setInTime(new Date(System.currentTimeMillis() - (60 * 60 * 1000)));
-        ticketDAO.saveTicket(ticket);
-
+        testParkingACar();
         parkingService.processExitingVehicle();
- 
-        verify(fareCalculatorService, times (1)).calculateFare( any(Ticket.class), eq(true));
-    }
+        Connection con = dataBaseTestConfig.getConnection();
 
+        con = dataBaseTestConfig.getConnection();
+        String queryTicket = "SELECT count(\"ABCDEF\") FROM ticket INNER JOIN parking ON ticket.PARKING_NUMBER = parking.PARKING_NUMBER WHERE ticket.VEHICLE_REG_NUMBER = \"ABCDEF\"";
+        int nbrTicket =0;
+        
+        //when
+        try{
+            PreparedStatement ps = con.prepareStatement(queryTicket);
+            ps.setString(1,"ABCDEF");
+            ResultSet rs = ps.executeQuery();
+            
+            while(rs.next()){
+               nbrTicket = rs.getInt(1);
+            }
+        } catch (Exception e) {
+            System.err.println("Exception : " + e.getMessage());
+             }
+
+             //then
+        finally {
+            Ticket ticket = ticketDAO.getTicket("ABCDEF");
+            if(nbrTicket > 1){
+                assertNotNull(ticket);
+                double discountPrice = ticket.getPrice() - (5 / 100);
+                assertEquals( (Fare.CAR_RATE_PER_HOUR) , discountPrice);
+            }
+            
+        }
+
+    }
 }

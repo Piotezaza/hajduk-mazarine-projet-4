@@ -32,8 +32,8 @@ import java.sql.Timestamp;
 <span class="fc" id="L32">            ps.setTimestamp(4, new Timestamp(ticket.getInTime().getTime()));</span>
 <span class="pc bpc" id="L33" title="1 of 2 branches missed.">            ps.setTimestamp(5, (ticket.getOutTime() == null)?null: (new Timestamp(ticket.getOutTime().getTime())) );</span>
 <span class="fc" id="L34">            return ps.execute();</span>
-<span class="nc" id="L35">        }catch (Exception ex){</span>
-<span class="nc" id="L36">            logger.error(&quot;Error fetching next available slot&quot;,ex);</span>
+<span class="fc" id="L35">        }catch (Exception ex){</span>
+<span class="fc" id="L36">            logger.error(&quot;Error fetching next available slot&quot;,ex);</span>
 <span class="nc" id="L37">        }finally {</span>
 <span class="fc" id="L38">            dataBaseConfig.closeConnection(con);</span>
 <span class="fc" id="L39">            return false;</span>

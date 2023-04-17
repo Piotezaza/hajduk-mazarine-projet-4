@@ -56,7 +56,7 @@ public class FareCalculatorServiceTest {
         assertEquals(ticket.getPrice(), Fare.BIKE_RATE_PER_HOUR);
     }
 
-    //@Test
+    @Test
     public void calculateFareUnkownType(){
         Date inTime = new Date();
         inTime.setTime( System.currentTimeMillis() - (60 * 60 * 1000) );
@@ -69,7 +69,7 @@ public class FareCalculatorServiceTest {
         assertThrows(NullPointerException.class, () -> fareCalculatorService.calculateFare(ticket, false));
     }
 
-    //@Test
+    @Test
     public void calculateFareBikeWithFutureInTime(){
         Date inTime = new Date();
         inTime.setTime( System.currentTimeMillis() + (60 * 60 * 1000) );
